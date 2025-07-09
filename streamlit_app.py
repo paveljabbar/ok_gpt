@@ -1,9 +1,8 @@
 import streamlit as st
 from collections import Counter
-from itertools import combinations
 
 st.set_page_config(page_title="Metin2 Okey Event - Nur farbige Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (alle gleichwertig)")
+st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (strategisch optimiert)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
@@ -49,37 +48,39 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# 🔁 Neue High-Intelligence Abwurf-Logik
+# 💡 NEUE ERWEITERTE LOGIK: Bewertet Serie-Flexibilität je Karte
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
-    
-    def count_possible_series(cards):
-        count = 0
-        for color in COLORS:
-            values = sorted([v for v, c in cards if c == color])
-            for i in range(len(values) - 2):
-                seq = [(values[i], color), (values[i+1], color), (values[i+2], color)]
-                if all((num, color) not in discarded for num, color in seq):
-                    if all(card in cards for card in seq):
-                        count += 1
-        return count
 
-    # Simuliere für jede Karte, wie viele Serien noch möglich wären, wenn sie fehlt
-    best_card = None
-    max_remaining_series = -1
+    # Mögliche Serien pro Farbe, mit Ausschluss verworfener Karten
+    possible_series = []
+    for color in COLORS:
+        for s in all_series:
+            if all((num, color) not in discarded for num in s):
+                possible_series.append([(num, color) for num in s])
 
+    card_scores = {}
     for card in hand:
-        simulated_hand = [c for c in hand if c != card]
-        series_count = count_possible_series(simulated_hand)
-        if series_count > max_remaining_series:
-            max_remaining_series = series_count
-            best_card = card
+        score = 0
+        for serie in possible_series:
+            if card in serie:
+                count_in_hand = sum(1 for c in serie if c in hand)
+                # Bonus für Serien mit mehreren Karten schon vorhanden
+                if count_in_hand == 3:
+                    score += 3  # Serie ist sofort legbar
+                elif count_in_hand == 2:
+                    score += 2
+                elif count_in_hand == 1:
+                    score += 0.5
+        card_scores[card] = score
 
-    return best_card
+    # Wähle Karte mit niedrigstem Serien-Flexibilitätswert
+    sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
+    return sorted_cards[0][0] if sorted_cards else None
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (maximiere Serienmöglichkeiten)")
+    st.markdown("### ✅ Empfehlung (auf Basis maximaler Flexibilität)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
