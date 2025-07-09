@@ -135,23 +135,6 @@ if len(st.session_state.hand) == 5:
         else:
             st.warning("Keine Empfehlung möglich.")
 
-        # 🔍 Überprüfen: Sind überhaupt noch Serien möglich?
-        all_series = [(i, i+1, i+2) for i in range(1, 7)]
-        possible_series = []
-        for color in COLORS:
-            for s in all_series:
-                if all((num, color) not in st.session_state.discarded_cards for num in s):
-                    possible_series.append([(num, color) for num in s])
-
-        serien_möglich = False
-        for serie in possible_series:
-            if sum(1 for c in serie if c in st.session_state.hand) >= 3:
-                serien_möglich = True
-                break
-
-        if not serien_möglich:
-            st.error("🚫 KEINE SERIEN MEHR MÖGLICH!!")
-
 # Verlauf
 with st.expander("📜 Verlauf anzeigen"):
     st.subheader("✔️ Gespielte Serien:")
