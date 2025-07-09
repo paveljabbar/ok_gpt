@@ -2,7 +2,7 @@ import streamlit as st
 from collections import Counter
 
 st.set_page_config(page_title="Metin2 Okey Event – Farbreine Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Farbreine Serien (mit smarter Abwurf-Logik)")
+st.title("🃏 Metin2 Okey-Event – Farbreine Serien (mit smarter Logik)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
@@ -48,11 +48,10 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# ✅ Verbesserte Abwurf-Logik + Erklärung
+# Abwurf-Empfehlung mit Begründung
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
 
-    # Serien, bei denen keine verworfenen Karten fehlen
     possible_series = []
     for color in COLORS:
         for s in all_series:
@@ -65,12 +64,12 @@ def suggest_card_to_discard(hand, discarded):
             if card in serie:
                 card_series_map[card].append(serie)
 
-    # Schritt 1: tote Karten erkennen
+    # 1. Tote Karten
     dead_cards = [card for card, series in card_series_map.items() if not series]
     if dead_cards:
         return dead_cards[0], "Diese Karte kann in keiner Serie mehr vorkommen (tote Karte)."
 
-    # Schritt 2: Seriennähe und Wertung
+    # 2. Bewertung mit Seriennähe & Randkarten
     card_scores = {}
     card_explanations = {}
     for card, series_list in card_series_map.items():
@@ -95,7 +94,6 @@ def suggest_card_to_discard(hand, discarded):
                 score += 1
                 notes.append(f"In einer Serie mit nur 1 Karte enthalten")
 
-        # Randzahlen abwerten
         if card[0] == 1 or card[0] == 8:
             score -= 1
             notes.append("Randkarte (1 oder 8) – weniger flexibel")
@@ -103,13 +101,12 @@ def suggest_card_to_discard(hand, discarded):
         card_scores[card] = score
         card_explanations[card] = notes
 
-    # Karte mit geringstem Score abwerfen
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
     chosen_card = sorted_cards[0][0]
     explanation = " | ".join(card_explanations[chosen_card])
     return chosen_card, explanation
 
-# Empfehlung bei 5 Karten
+# Hauptlogik bei 5 Karten in der Hand
 if len(st.session_state.hand) == 5:
     st.markdown("### ✅ Empfehlung")
 
@@ -138,7 +135,24 @@ if len(st.session_state.hand) == 5:
         else:
             st.warning("Keine Empfehlung möglich.")
 
-# Verlauf anzeigen
+        # 🔍 Überprüfen: Sind überhaupt noch Serien möglich?
+        all_series = [(i, i+1, i+2) for i in range(1, 7)]
+        possible_series = []
+        for color in COLORS:
+            for s in all_series:
+                if all((num, color) not in st.session_state.discarded_cards for num in s):
+                    possible_series.append([(num, color) for num in s])
+
+        serien_möglich = False
+        for serie in possible_series:
+            if sum(1 for c in serie if c in st.session_state.hand) >= 3:
+                serien_möglich = True
+                break
+
+        if not serien_möglich:
+            st.error("🚫 KEINE SERIEN MEHR MÖGLICH!!")
+
+# Verlauf
 with st.expander("📜 Verlauf anzeigen"):
     st.subheader("✔️ Gespielte Serien:")
     if st.session_state.played_series:
