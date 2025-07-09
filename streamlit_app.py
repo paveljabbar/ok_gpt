@@ -38,7 +38,7 @@ for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_act
         st.session_state[key] = []
 
 # Kompakter Karten-Auswahlbereich
-st.markdown("### ➕ Karte auswählen")
+st.markdown("### ➕ Kartendeck")
 cols = st.columns(8)
 for i in range(8):
     with cols[i]:
