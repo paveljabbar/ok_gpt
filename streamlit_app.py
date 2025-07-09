@@ -1,72 +1,79 @@
 import streamlit as st
-from okey_logic import (
-    get_valid_color_series,
-    recommend_discard,
-    play_color_series
-)
+from collections import Counter
 
-st.set_page_config(page_title="Metin2 Okey Event", layout="centered")
-st.title("🃏 Metin2 Okey Event – Farbgleiche Straße Builder")
+st.set_page_config(page_title="Metin2 Okey Event - Nur gleichfarbige Serien", layout="wide")
 
+st.title("🃏 Metin2 Okey-Event (Farbreine Serien Only)")
+
+COLORS = ["🔴", "🟡", "🔵"]
+COLOR_NAMES = {"🔴": "rot", "🟡": "gelb", "🔵": "blau"}
+
+# Initialisieren des Session State
 if "hand" not in st.session_state:
     st.session_state.hand = []
-if "played_sets" not in st.session_state:
-    st.session_state.played_sets = []
-if "score" not in st.session_state:
-    st.session_state.score = 0
 
-def reset_game():
-    st.session_state.hand = []
-    st.session_state.played_sets = []
-    st.session_state.score = 0
-
-st.sidebar.button("🔄 Neues Spiel", on_click=reset_game)
-
-# Karten hinzufügen
-st.subheader("📥 Karte ziehen")
-color = st.selectbox("Farbe", ["r", "g", "b"], format_func=lambda c: {"r": "Rot", "g": "Grün", "b": "Blau"}[c])
-number = st.number_input("Zahl", min_value=1, max_value=8, step=1)
-if st.button("Karte hinzufügen"):
-    st.session_state.hand.append(f"{number}{color}")
+# Karten-Button-Bereich
+st.markdown("### ➕ Karte auswählen")
+cols = st.columns(8)
+for i in range(8):
+    with cols[i]:
+        for color in COLORS:
+            if st.button(f"{i+1} {color}", key=f"{color}{i+1}"):
+                if len(st.session_state.hand) < 5:
+                    st.session_state.hand.append((i+1, color))
+                else:
+                    st.warning("Maximal 5 Karten in der Hand!")
 
 # Hand anzeigen
-st.subheader("🖐️ Deine Karten")
+st.markdown("### ✋ Deine aktuelle Hand")
 if st.session_state.hand:
-    st.write(" | ".join(st.session_state.hand))
+    st.write("Karten:", " | ".join([f"{v} {c}" for v, c in st.session_state.hand]))
 else:
-    st.info("Noch keine Karten auf der Hand.")
+    st.write("Noch keine Karten auf der Hand.")
 
-# Empfehlung anzeigen
-if len(st.session_state.hand) >= 5:
-    recommended = recommend_discard(st.session_state.hand)
-    st.info(f"💡 Empfehlung: Verwerfe **{recommended}**")
+# Hilfsfunktion für Serienprüfung
+def find_colored_series(hand):
+    # Gruppiere nach Farbe
+    best_series = None
+    best_score = -1
 
-# Verwerfen
-st.subheader("🗑️ Karte verwerfen")
-discard = st.selectbox("Welche Karte willst du verwerfen?", st.session_state.hand)
-if st.button("Verwerfen"):
-    st.session_state.hand.remove(discard)
+    for color in COLORS:
+        values = sorted([v for v, c in hand if c == color])
+        for i in range(len(values) - 2):
+            if values[i+1] == values[i]+1 and values[i+2] == values[i]+2:
+                score = values[i] + values[i+1] + values[i+2]  # einfache Bewertung
+                if score > best_score:
+                    best_score = score
+                    best_series = [(values[i], color), (values[i+1], color), (values[i+2], color)]
 
-# Farbgleiche Serien spielen
-st.subheader("✅ Farbgleiche Serie spielen")
-valid_sets = get_valid_color_series(st.session_state.hand)
+    return best_series
 
-if valid_sets:
-    to_play = st.selectbox("Wähle eine farbgleiche Serie", valid_sets, format_func=lambda s: " - ".join(s))
-    if st.button("Serie spielen"):
-        st.session_state.hand = play_color_series(st.session_state.hand, to_play)
-        st.session_state.played_sets.append(to_play)
-        st.session_state.score += 60  # Jede farbgleiche Serie = 60 Punkte
-        st.success(f"Serie gespielt: {' - '.join(to_play)} (+60 Punkte)")
-else:
-    st.info("Keine gültige farbgleiche Serie verfügbar.")
+# Empfehlungen anzeigen, wenn 5 Karten vorhanden sind
+if len(st.session_state.hand) == 5:
+    st.markdown("### ✅ Empfehlung")
 
-# Punktestand
-st.subheader("🎯 Punktestand")
-st.write(f"**{st.session_state.score} Punkte**")
+    series = find_colored_series(st.session_state.hand)
+    if series:
+        st.success("Du kannst eine Serie legen:")
+        st.write(" ➝ ", " | ".join([f"{v} {c}" for v, c in series]))
 
-# Gespielte Serien anzeigen
-if st.session_state.played_sets:
-    st.subheader("🃏 Gespielte Serien")
-    for s in st.session_state.played_sets:
-        st.write(" - ".join(s))
+        if st.button("✔️ Serie bestätigen"):
+            for card in series:
+                st.session_state.hand.remove(card)
+            st.success("Serie gelegt!")
+    else:
+        st.info("Keine gültige farbreine Serie. Empfehlung: Karte abwerfen.")
+        # Zeige Vorschlag, welche Karte weg soll
+        count_by_value = Counter([v for v, c in st.session_state.hand])
+        least_common = count_by_value.most_common()[-1][0]
+        card_to_discard = next(card for card in st.session_state.hand if card[0] == least_common)
+        st.write("🗑 Empfehlung: ", f"{card_to_discard[0]} {card_to_discard[1]}")
+        if st.button("🗑 Karte abwerfen"):
+            st.session_state.hand.remove(card_to_discard)
+            st.success("Karte verworfen.")
+
+# Reset-Button
+st.markdown("---")
+if st.button("🔄 Spiel zurücksetzen"):
+    st.session_state.hand = []
+    st.success("Hand zurückgesetzt.")
