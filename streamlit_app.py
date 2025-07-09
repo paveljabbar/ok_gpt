@@ -2,16 +2,30 @@ import streamlit as st
 from collections import Counter
 
 st.set_page_config(page_title="Metin2 Okey Event – Farbreine Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Farbreine Serien (automatischer Bot)")
+st.title("🃏 Metin2 Okey-Event – Farbreine Serien (kompakte Ansicht)")
 
 COLORS = ["🔴", "🟡", "🔵"]
+
+# CSS: Button- und Layout-Anpassung (kompaktere Darstellung)
+st.markdown("""
+    <style>
+    div[data-testid="column"] {
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+    button[kind="secondary"] {
+        padding: 2px 4px;
+        font-size: 15px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Initialisieren von Session States
 for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_action"]:
     if key not in st.session_state:
         st.session_state[key] = []
 
-# Karten-Button-Bereich
+# Kompakter Karten-Button-Bereich
 st.markdown("### ➕ Karte auswählen (max. 24 insgesamt, max. 5 in der Hand)")
 cols = st.columns(8)
 for i in range(8):
@@ -39,7 +53,7 @@ if st.session_state.hand:
 else:
     st.info("Noch keine Karten in der Hand.")
 
-# Serie finden (erste gültige farbreine 3er-Serie)
+# Serie finden
 def find_colored_series(hand):
     for color in COLORS:
         values = sorted([v for v, c in hand if c == color])
@@ -51,7 +65,6 @@ def find_colored_series(hand):
 # Abwurf-Empfehlung ohne Begründung
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
-
     possible_series = []
     for color in COLORS:
         for s in all_series:
@@ -64,12 +77,10 @@ def suggest_card_to_discard(hand, discarded):
             if card in serie:
                 card_series_map[card].append(serie)
 
-    # 1. Tote Karten
     dead_cards = [card for card, series in card_series_map.items() if not series]
     if dead_cards:
         return dead_cards[0]
 
-    # 2. Bewertung mit Seriennähe & Randkarten
     card_scores = {}
     for card, series_list in card_series_map.items():
         score = 0
@@ -96,7 +107,7 @@ def suggest_card_to_discard(hand, discarded):
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
     return sorted_cards[0][0]
 
-# Hauptlogik bei 5 Karten in der Hand
+# Automatische Aktion bei 5 Karten
 if len(st.session_state.hand) == 5:
     st.markdown("### ✅ Automatische Aktion")
 
