@@ -2,7 +2,7 @@ import streamlit as st
 from collections import Counter
 
 st.set_page_config(page_title="Metin2 Okey Event - Nur farbige Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (6-7-8 Ziel)")
+st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (alle gleichwertig)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 COLOR_NAMES = {"🔴": "rot", "🟡": "gelb", "🔵": "blau"}
@@ -43,22 +43,16 @@ if st.session_state.hand:
 else:
     st.info("Noch keine Karten in der Hand.")
 
-# Hilfsfunktion zum Finden gültiger farbiger Serien
+# ✅ Neue Serie-Funktion: alle gültigen gleichwertig
 def find_colored_series(hand):
-    best_series = None
-    best_score = -1
     for color in COLORS:
         values = sorted([v for v, c in hand if c == color])
         for i in range(len(values) - 2):
             if values[i+1] == values[i]+1 and values[i+2] == values[i]+2:
-                score = values[i] + values[i+1] + values[i+2]
-                series = [(values[i], color), (values[i+1], color), (values[i+2], color)]
-                if score > best_score:
-                    best_score = score
-                    best_series = series
-    return best_series
+                return [(values[i], color), (values[i+1], color), (values[i+2], color)]
+    return None
 
-# Neue Logik: Welche Karte ist strategisch tot?
+# Welche Karte ist strategisch tot?
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
     potential = {}
@@ -82,7 +76,7 @@ def suggest_card_to_discard(hand, discarded):
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (basierend auf farbreinen Serien + verworfene Karten)")
+    st.markdown("### ✅ Empfehlung (alle farbreinen Serien gleichwertig)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
