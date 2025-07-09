@@ -6,26 +6,38 @@ st.title("🃏 Metin2 Okey-Event – Farbreine Serien (kompakte Ansicht)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
-# CSS: Button- und Layout-Anpassung (kompaktere Darstellung)
+# CSS für kompaktes Grid
 st.markdown("""
     <style>
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(8, auto);
+        gap: 4px 8px;
+        margin-bottom: 10px;
+    }
+    .card-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+    .card-col button {
+        padding: 2px 6px;
+        font-size: 15px;
+    }
     div[data-testid="column"] {
         padding-left: 2px;
         padding-right: 2px;
     }
-    button[kind="secondary"] {
-        padding: 2px 4px;
-        font-size: 15px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# Initialisieren von Session States
+# Initialisieren von States
 for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_action"]:
     if key not in st.session_state:
         st.session_state[key] = []
 
-# Kompakter Karten-Button-Bereich
+# Kompakter Karten-Auswahlbereich
 st.markdown("### ➕ Karte auswählen (max. 24 insgesamt, max. 5 in der Hand)")
 cols = st.columns(8)
 for i in range(8):
@@ -46,14 +58,14 @@ for i in range(8):
                         st.session_state.hand.append(card)
                         st.session_state.drawn_cards.append(card)
 
-# Anzeige: Hand
+# Aktuelle Hand anzeigen
 st.markdown("### ✋ Aktuelle Hand (max. 5 Karten)")
 if st.session_state.hand:
     st.write(" | ".join([f"{v} {c}" for v, c in st.session_state.hand]))
 else:
     st.info("Noch keine Karten in der Hand.")
 
-# Serie finden
+# Serienerkennung
 def find_colored_series(hand):
     for color in COLORS:
         values = sorted([v for v, c in hand if c == color])
@@ -62,7 +74,7 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# Abwurf-Empfehlung ohne Begründung
+# Karte zum Abwerfen ermitteln
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
     possible_series = []
@@ -107,7 +119,7 @@ def suggest_card_to_discard(hand, discarded):
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
     return sorted_cards[0][0]
 
-# Automatische Aktion bei 5 Karten
+# Hauptlogik bei voller Hand
 if len(st.session_state.hand) == 5:
     st.markdown("### ✅ Automatische Aktion")
 
