@@ -1,8 +1,8 @@
 import streamlit as st
 from collections import Counter
 
-st.set_page_config(page_title="Metin2 Okey Event – Farbreine Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Farbreine Serien (kompakte Ansicht)")
+st.set_page_config(page_title="Metin2 Okey Event", layout="wide")
+st.title("🃏 Metin2 Okey-Event")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
@@ -38,7 +38,7 @@ for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_act
         st.session_state[key] = []
 
 # Kompakter Karten-Auswahlbereich
-st.markdown("### ➕ Karte auswählen (max. 24 insgesamt, max. 5 in der Hand)")
+st.markdown("### ➕ Karte auswählen")
 cols = st.columns(8)
 for i in range(8):
     with cols[i]:
@@ -59,7 +59,7 @@ for i in range(8):
                         st.session_state.drawn_cards.append(card)
 
 # Aktuelle Hand anzeigen
-st.markdown("### ✋ Aktuelle Hand (max. 5 Karten)")
+st.markdown("### ✋ Aktuelle Hand")
 if st.session_state.hand:
     st.write(" | ".join([f"{v} {c}" for v, c in st.session_state.hand]))
 else:
