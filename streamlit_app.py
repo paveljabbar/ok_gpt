@@ -1,8 +1,8 @@
 import streamlit as st
 from collections import Counter
 
-st.set_page_config(page_title="Metin2 Okey Event - Nur farbige Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (tote Karten zuerst)")
+st.set_page_config(page_title="Metin2 Okey Event – Nur farbige Serien", layout="wide")
+st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (mit erweiterter Logik)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
@@ -48,37 +48,50 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# ✅ NEUE Abwurf-Logik: Tote Karten zuerst!
+# ✅ Kombinierte Abwurf-Logik: Tote Karten → Serienpotenzial → Seriennähe
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
 
-    # Mögliche Serien pro Farbe, unter Berücksichtigung der verworfenen Karten
+    # Alle möglichen Serien, unter Ausschluss verworfener Karten
     possible_series = []
     for color in COLORS:
         for s in all_series:
             if all((num, color) not in discarded for num in s):
                 possible_series.append([(num, color) for num in s])
 
-    card_scores = {}
-    for card in hand:
-        count = 0
-        for serie in possible_series:
+    # 1. Karte → alle passenden Serien zuordnen
+    card_series_map = {card: [] for card in hand}
+    for serie in possible_series:
+        for card in hand:
             if card in serie:
-                count += 1
-        card_scores[card] = count
+                card_series_map[card].append(serie)
 
-    # 1. Finde tote Karten (keine Serie möglich)
-    dead_cards = [card for card, score in card_scores.items() if score == 0]
+    # 2. Tote Karten erkennen (in keiner Serie mehr enthalten)
+    dead_cards = [card for card, series in card_series_map.items() if not series]
     if dead_cards:
-        return dead_cards[0]  # Priorität: erste tote Karte
+        return dead_cards[0]  # sofort abwerfen
 
-    # 2. Sonst: wähle Karte mit geringstem Serienpotenzial
+    # 3. Bewertung: Seriennähe + Potenzial
+    card_scores = {}
+    for card, series in card_series_map.items():
+        score = 0
+        for serie in series:
+            in_hand = sum(1 for c in serie if c in hand)
+            if in_hand == 3:
+                score += 3  # bereits vollständige Serie (sollte gelegt werden)
+            elif in_hand == 2:
+                score += 5  # besonders wertvoll – 2/3 vorhanden!
+            elif in_hand == 1:
+                score += 1  # leichtes Potenzial
+        card_scores[card] = score
+
+    # Karte mit dem niedrigsten Score wird abgeworfen
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
-    return sorted_cards[0][0] if sorted_cards else None
+    return sorted_cards[0][0]
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (tote Karten werden bevorzugt abgeworfen)")
+    st.markdown("### ✅ Empfehlung (basierend auf toten Karten, Potenzial und Seriennähe)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
