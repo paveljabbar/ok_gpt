@@ -1,20 +1,19 @@
 import streamlit as st
 from collections import Counter
+from itertools import combinations
 
 st.set_page_config(page_title="Metin2 Okey Event - Nur farbige Serien", layout="wide")
 st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (alle gleichwertig)")
 
 COLORS = ["🔴", "🟡", "🔵"]
-COLOR_NAMES = {"🔴": "rot", "🟡": "gelb", "🔵": "blau"}
 
 # Initialisieren von Session States
 for key in ["hand", "drawn_cards", "discarded_cards", "played_series"]:
     if key not in st.session_state:
         st.session_state[key] = []
 
-# Karten-Button-Bereich mit Sperre und Visualisierung
+# Karten-Button-Bereich
 st.markdown("### ➕ Karte auswählen (max 24 insgesamt, max 5 in Hand)")
-
 cols = st.columns(8)
 for i in range(8):
     with cols[i]:
@@ -22,8 +21,6 @@ for i in range(8):
             card = (i+1, color)
             disabled = card in st.session_state.drawn_cards
             button_key = f"btn_{card[0]}_{color}"
-
-            # Button rendern – deaktiviert oder aktiv
             if disabled:
                 st.button(f"{card[0]} {color}", key=button_key, disabled=True)
             else:
@@ -43,7 +40,7 @@ if st.session_state.hand:
 else:
     st.info("Noch keine Karten in der Hand.")
 
-# ✅ Serie-Funktion: alle gültigen gleichwertig
+# Serie finden (erste gültige farbreine 3er-Serie)
 def find_colored_series(hand):
     for color in COLORS:
         values = sorted([v for v, c in hand if c == color])
@@ -52,28 +49,37 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# 🔁 Neue smarte Abwurf-Logik (Serienpotenzial)
+# 🔁 Neue High-Intelligence Abwurf-Logik
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
-    scores = {}
+    
+    def count_possible_series(cards):
+        count = 0
+        for color in COLORS:
+            values = sorted([v for v, c in cards if c == color])
+            for i in range(len(values) - 2):
+                seq = [(values[i], color), (values[i+1], color), (values[i+2], color)]
+                if all((num, color) not in discarded for num, color in seq):
+                    if all(card in cards for card in seq):
+                        count += 1
+        return count
 
-    for v, color in hand:
-        score = 0
-        for s in all_series:
-            if v in s:
-                series_cards = [(num, color) for num in s]
-                if any(card not in discarded for card in series_cards):
-                    in_hand = sum(1 for card in series_cards if card in hand)
-                    score += in_hand  # Mehr Karten = höheres Potenzial
-        scores[(v, color)] = score
+    # Simuliere für jede Karte, wie viele Serien noch möglich wären, wenn sie fehlt
+    best_card = None
+    max_remaining_series = -1
 
-    # Wähle Karte mit geringstem Serienpotenzial
-    sorted_scores = sorted(scores.items(), key=lambda x: x[1])
-    return sorted_scores[0][0] if sorted_scores else None
+    for card in hand:
+        simulated_hand = [c for c in hand if c != card]
+        series_count = count_possible_series(simulated_hand)
+        if series_count > max_remaining_series:
+            max_remaining_series = series_count
+            best_card = card
+
+    return best_card
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (basierend auf Serienpotenzial)")
+    st.markdown("### ✅ Empfehlung (maximiere Serienmöglichkeiten)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
