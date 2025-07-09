@@ -2,7 +2,7 @@ import streamlit as st
 from collections import Counter
 
 st.set_page_config(page_title="Metin2 Okey Event - Nur farbige Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (strategisch optimiert)")
+st.title("🃏 Metin2 Okey-Event – Nur farbreine Serien (tote Karten zuerst)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
@@ -48,11 +48,11 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# 💡 NEUE ERWEITERTE LOGIK: Bewertet Serie-Flexibilität je Karte
+# ✅ NEUE Abwurf-Logik: Tote Karten zuerst!
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
 
-    # Mögliche Serien pro Farbe, mit Ausschluss verworfener Karten
+    # Mögliche Serien pro Farbe, unter Berücksichtigung der verworfenen Karten
     possible_series = []
     for color in COLORS:
         for s in all_series:
@@ -61,26 +61,24 @@ def suggest_card_to_discard(hand, discarded):
 
     card_scores = {}
     for card in hand:
-        score = 0
+        count = 0
         for serie in possible_series:
             if card in serie:
-                count_in_hand = sum(1 for c in serie if c in hand)
-                # Bonus für Serien mit mehreren Karten schon vorhanden
-                if count_in_hand == 3:
-                    score += 3  # Serie ist sofort legbar
-                elif count_in_hand == 2:
-                    score += 2
-                elif count_in_hand == 1:
-                    score += 0.5
-        card_scores[card] = score
+                count += 1
+        card_scores[card] = count
 
-    # Wähle Karte mit niedrigstem Serien-Flexibilitätswert
+    # 1. Finde tote Karten (keine Serie möglich)
+    dead_cards = [card for card, score in card_scores.items() if score == 0]
+    if dead_cards:
+        return dead_cards[0]  # Priorität: erste tote Karte
+
+    # 2. Sonst: wähle Karte mit geringstem Serienpotenzial
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
     return sorted_cards[0][0] if sorted_cards else None
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (auf Basis maximaler Flexibilität)")
+    st.markdown("### ✅ Empfehlung (tote Karten werden bevorzugt abgeworfen)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
