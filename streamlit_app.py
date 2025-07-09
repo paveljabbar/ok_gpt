@@ -43,7 +43,7 @@ if st.session_state.hand:
 else:
     st.info("Noch keine Karten in der Hand.")
 
-# ✅ Neue Serie-Funktion: alle gültigen gleichwertig
+# ✅ Serie-Funktion: alle gültigen gleichwertig
 def find_colored_series(hand):
     for color in COLORS:
         values = sorted([v for v, c in hand if c == color])
@@ -52,31 +52,28 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# Welche Karte ist strategisch tot?
+# 🔁 Neue smarte Abwurf-Logik (Serienpotenzial)
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
-    potential = {}
+    scores = {}
 
     for v, color in hand:
-        potential_series = []
+        score = 0
         for s in all_series:
             if v in s:
-                if all((num, color) not in discarded for num in s):
-                    potential_series.append(s)
-        potential[(v, color)] = potential_series
+                series_cards = [(num, color) for num in s]
+                if any(card not in discarded for card in series_cards):
+                    in_hand = sum(1 for card in series_cards if card in hand)
+                    score += in_hand  # Mehr Karten = höheres Potenzial
+        scores[(v, color)] = score
 
-    min_options = float('inf')
-    to_discard = None
-    for card, series_list in potential.items():
-        if len(series_list) < min_options:
-            min_options = len(series_list)
-            to_discard = card
-
-    return to_discard
+    # Wähle Karte mit geringstem Serienpotenzial
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1])
+    return sorted_scores[0][0] if sorted_scores else None
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (alle farbreinen Serien gleichwertig)")
+    st.markdown("### ✅ Empfehlung (basierend auf Serienpotenzial)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
