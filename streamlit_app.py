@@ -2,12 +2,12 @@ import streamlit as st
 from collections import Counter
 
 st.set_page_config(page_title="Metin2 Okey Event – Farbreine Serien", layout="wide")
-st.title("🃏 Metin2 Okey-Event – Farbreine Serien (mit smarter Logik)")
+st.title("🃏 Metin2 Okey-Event – Farbreine Serien (automatischer Bot)")
 
 COLORS = ["🔴", "🟡", "🔵"]
 
 # Initialisieren von Session States
-for key in ["hand", "drawn_cards", "discarded_cards", "played_series"]:
+for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_action"]:
     if key not in st.session_state:
         st.session_state[key] = []
 
@@ -48,7 +48,7 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# Abwurf-Empfehlung mit Begründung
+# Abwurf-Empfehlung ohne Begründung
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
 
@@ -67,14 +67,12 @@ def suggest_card_to_discard(hand, discarded):
     # 1. Tote Karten
     dead_cards = [card for card, series in card_series_map.items() if not series]
     if dead_cards:
-        return dead_cards[0], "Diese Karte kann in keiner Serie mehr vorkommen (tote Karte)."
+        return dead_cards[0]
 
     # 2. Bewertung mit Seriennähe & Randkarten
     card_scores = {}
-    card_explanations = {}
     for card, series_list in card_series_map.items():
         score = 0
-        notes = []
         for serie in series_list:
             in_hand = sum(1 for c in serie if c in hand)
             values = [v for v, c in serie if (v, c) in hand]
@@ -82,58 +80,47 @@ def suggest_card_to_discard(hand, discarded):
 
             if in_hand == 3:
                 score += 3
-                notes.append("Komplette Serie – wird sowieso gelegt")
             elif in_hand == 2:
                 if abs(values[0] - values[1]) == 1:
                     score += 6
-                    notes.append(f"2 angrenzende Karten ({values[0]} & {values[1]}) – fast fertig")
                 else:
                     score += 4
-                    notes.append(f"2 Karten mit Lücke ({values[0]} & {values[1]}) – brauchbar")
             elif in_hand == 1:
                 score += 1
-                notes.append(f"In einer Serie mit nur 1 Karte enthalten")
 
         if card[0] == 1 or card[0] == 8:
             score -= 1
-            notes.append("Randkarte (1 oder 8) – weniger flexibel")
 
         card_scores[card] = score
-        card_explanations[card] = notes
 
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
-    chosen_card = sorted_cards[0][0]
-    explanation = " | ".join(card_explanations[chosen_card])
-    return chosen_card, explanation
+    return sorted_cards[0][0]
 
 # Hauptlogik bei 5 Karten in der Hand
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung")
+    st.markdown("### ✅ Automatische Aktion")
 
     series = find_colored_series(st.session_state.hand)
     if series:
-        st.success("Vorschlag: Serie legen → " + " | ".join([f"{v} {c}" for v, c in series]))
-        if st.button("✔️ Serie legen"):
-            for card in series:
-                st.session_state.hand.remove(card)
-            st.session_state.played_series.append(series)
-            st.success("Serie gelegt!")
+        for card in series:
+            st.session_state.hand.remove(card)
+        st.session_state.played_series.append(series)
+        msg = "Serie automatisch gelegt: " + " | ".join([f"{v} {c}" for v, c in series])
+        st.session_state.last_action = msg
+        st.success(msg)
     else:
-        st.info("Keine Serie legbar – Empfehlung für Abwurf:")
-
-        card_to_discard, explanation = suggest_card_to_discard(
+        card_to_discard = suggest_card_to_discard(
             st.session_state.hand, st.session_state.discarded_cards
         )
+        st.session_state.hand.remove(card_to_discard)
+        st.session_state.discarded_cards.append(card_to_discard)
+        msg = f"Karte automatisch abgeworfen: {card_to_discard[0]} {card_to_discard[1]}"
+        st.session_state.last_action = msg
+        st.info(msg)
 
-        if card_to_discard:
-            st.write(f"🗑 Vorschlag: **{card_to_discard[0]} {card_to_discard[1]}**")
-            st.caption(f"💡 Begründung: {explanation}")
-            if st.button("🗑 Karte abwerfen"):
-                st.session_state.hand.remove(card_to_discard)
-                st.session_state.discarded_cards.append(card_to_discard)
-                st.success("Karte verworfen.")
-        else:
-            st.warning("Keine Empfehlung möglich.")
+# Letzte Aktion anzeigen
+if st.session_state.get("last_action"):
+    st.caption(f"🕒 Letzte Aktion: {st.session_state.last_action}")
 
 # Verlauf
 with st.expander("📜 Verlauf anzeigen"):
@@ -160,6 +147,6 @@ with st.expander("📜 Verlauf anzeigen"):
 # Zurücksetzen
 st.markdown("---")
 if st.button("🔄 Alles zurücksetzen"):
-    for key in ["hand", "drawn_cards", "discarded_cards", "played_series"]:
+    for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_action"]:
         st.session_state[key] = []
     st.success("Spiel wurde vollständig zurückgesetzt.")
