@@ -38,7 +38,7 @@ for key in ["hand", "drawn_cards", "discarded_cards", "played_series", "last_act
         st.session_state[key] = []
 
 # Kompakter Karten-Auswahlbereich
-st.markdown("### ➕ Kartendeck")
+st.markdown("### ➕ Kartedeck")
 cols = st.columns(8)
 for i in range(8):
     with cols[i]:
@@ -74,7 +74,7 @@ def find_colored_series(hand):
                 return [(values[i], color), (values[i+1], color), (values[i+2], color)]
     return None
 
-# Karte zum Abwerfen ermitteln
+# Karte zum Abwerfen ermitteln (mit Serie-Potenzial-Multiplikator)
 def suggest_card_to_discard(hand, discarded):
     all_series = [(i, i+1, i+2) for i in range(1, 7)]
     possible_series = []
@@ -89,13 +89,20 @@ def suggest_card_to_discard(hand, discarded):
             if card in serie:
                 card_series_map[card].append(serie)
 
+    # 1. Tote Karten priorisieren
     dead_cards = [card for card, series in card_series_map.items() if not series]
     if dead_cards:
         return dead_cards[0]
 
+    # 2. Bewertete Karten nach Seriennähe und -potenzial
     card_scores = {}
     for card, series_list in card_series_map.items():
         score = 0
+
+        # Wie viele Serien gibt es, in denen die Karte vorkommen kann?
+        total_possible_series = len(series_list)
+
+        # Grundwertung nach In-Progress Serien
         for serie in series_list:
             in_hand = sum(1 for c in serie if c in hand)
             values = [v for v, c in serie if (v, c) in hand]
@@ -111,11 +118,16 @@ def suggest_card_to_discard(hand, discarded):
             elif in_hand == 1:
                 score += 1
 
+        # Bonus: Je mehr verbleibende Serien möglich, desto besser
+        score += total_possible_series * 1.5
+
+        # Randkarten abwerten
         if card[0] == 1 or card[0] == 8:
             score -= 1
 
         card_scores[card] = score
 
+    # Karte mit niedrigstem Score wird abgeworfen
     sorted_cards = sorted(card_scores.items(), key=lambda x: x[1])
     return sorted_cards[0][0]
 
