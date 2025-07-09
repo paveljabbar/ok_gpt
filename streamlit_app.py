@@ -12,21 +12,29 @@ for key in ["hand", "drawn_cards", "discarded_cards", "played_series"]:
     if key not in st.session_state:
         st.session_state[key] = []
 
-# Karten-Button-Bereich
+# Karten-Button-Bereich mit Sperre und Visualisierung
 st.markdown("### ➕ Karte auswählen (max 24 insgesamt, max 5 in Hand)")
+
 cols = st.columns(8)
 for i in range(8):
     with cols[i]:
         for color in COLORS:
             card = (i+1, color)
-            if st.button(f"{i+1} {color}", key=f"{color}{i+1}"):
-                if len(st.session_state.drawn_cards) >= 24:
-                    st.warning("Du hast bereits 24 Karten gezogen.")
-                elif len(st.session_state.hand) >= 5:
-                    st.warning("Deine Hand ist voll (5 Karten).")
-                else:
-                    st.session_state.hand.append(card)
-                    st.session_state.drawn_cards.append(card)
+            disabled = card in st.session_state.drawn_cards
+            button_key = f"btn_{card[0]}_{color}"
+
+            # Button rendern – deaktiviert oder aktiv
+            if disabled:
+                st.button(f"{card[0]} {color}", key=button_key, disabled=True)
+            else:
+                if st.button(f"{card[0]} {color}", key=button_key):
+                    if len(st.session_state.drawn_cards) >= 24:
+                        st.warning("Du hast bereits 24 Karten gezogen.")
+                    elif len(st.session_state.hand) >= 5:
+                        st.warning("Deine Hand ist voll (5 Karten).")
+                    else:
+                        st.session_state.hand.append(card)
+                        st.session_state.drawn_cards.append(card)
 
 # Anzeige: Hand
 st.markdown("### ✋ Aktuelle Hand (max 5 Karten)")
@@ -43,7 +51,7 @@ def find_colored_series(hand):
         values = sorted([v for v, c in hand if c == color])
         for i in range(len(values) - 2):
             if values[i+1] == values[i]+1 and values[i+2] == values[i]+2:
-                score = values[i] + values[i+1] + values[i+2]  # einfache Bewertung
+                score = values[i] + values[i+1] + values[i+2]
                 series = [(values[i], color), (values[i+1], color), (values[i+2], color)]
                 if score > best_score:
                     best_score = score
@@ -52,19 +60,17 @@ def find_colored_series(hand):
 
 # Neue Logik: Welche Karte ist strategisch tot?
 def suggest_card_to_discard(hand, discarded):
-    all_series = [(i, i+1, i+2) for i in range(1, 7)]  # alle möglichen 3er-Serien
+    all_series = [(i, i+1, i+2) for i in range(1, 7)]
     potential = {}
 
     for v, color in hand:
         potential_series = []
         for s in all_series:
             if v in s:
-                # Serie nur zulässig, wenn KEINE der Zahlen im Set bereits verworfen wurde (in derselben Farbe)
                 if all((num, color) not in discarded for num in s):
                     potential_series.append(s)
         potential[(v, color)] = potential_series
 
-    # Finde Karte mit wenigsten möglichen Serien (0 = tot)
     min_options = float('inf')
     to_discard = None
     for card, series_list in potential.items():
@@ -76,7 +82,7 @@ def suggest_card_to_discard(hand, discarded):
 
 # Empfehlung bei 5 Karten
 if len(st.session_state.hand) == 5:
-    st.markdown("### ✅ Empfehlung (basierend auf farbreinen Serien + ausgeschlossenen Serien)")
+    st.markdown("### ✅ Empfehlung (basierend auf farbreinen Serien + verworfene Karten)")
 
     series = find_colored_series(st.session_state.hand)
     if series:
@@ -100,7 +106,7 @@ if len(st.session_state.hand) == 5:
                 st.session_state.discarded_cards.append(card_to_discard)
                 st.success("Karte verworfen.")
         else:
-            st.warning("Fehler: Keine Karte zur Empfehlung gefunden.")
+            st.warning("Keine Empfehlung möglich.")
 
 # Spielverlauf anzeigen
 with st.expander("📜 Verlauf anzeigen (Serien, Verworfenes, Gezogene Karten)"):
